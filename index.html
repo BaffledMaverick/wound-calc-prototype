@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wound Area & Volume Calculator (Prototype)</title>
+  <style>
+    :root{
+      --bg:#0b0c10;
+      --card:#15171c;
+      --muted:#8a93a6;
+      --text:#eef2ff;
+      --accent:#7c9cff;
+      --red:#ff5a5a;
+      --green:#1fbf79;
+      --border:#232632;
+      --focus:#a3b8ff;
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+      --radius:18px;
+    }
+    html,body{height:100%}
+    body{
+      margin:0; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      background:linear-gradient(180deg,#0b0c10 0%, #11131a 100%);
+      color:var(--text);
+      display:flex; align-items:center; justify-content:center; padding:16px;
+    }
+    .app{ width:min(900px,100%); }
+
+    .card{
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      box-shadow:var(--shadow); padding:18px; margin:0 auto; position:relative; overflow:hidden;
+    }
+    .card h1{ font-size:1.25rem; margin:0 0 8px; letter-spacing:.2px }
+    .subtitle{ color:var(--muted); margin-bottom:16px; font-size:.95rem }
+
+    .mode-toggle{
+      display:flex; gap:8px; background:#0f1117; border:1px solid var(--border); padding:6px; border-radius:999px; width:fit-content;
+    }
+    .mode-toggle button{
+      border:0; padding:10px 14px; border-radius:999px; background:transparent; color:var(--muted); cursor:pointer; font-weight:600;
+    }
+    .mode-toggle button.active{ background:var(--accent); color:#0a0b0f }
+
+    .grid{
+      display:grid; gap:14px; grid-template-columns:1fr; margin-top:16px;
+    }
+    @media (min-width:780px){ .grid{ grid-template-columns:1fr 1fr } }
+
+    .section{ border:1px solid var(--border); border-radius:14px; padding:14px }
+    .section h2{ font-size:1rem; margin:0 0 8px }
+
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+    .row-3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px }
+    .input{
+      display:flex; flex-direction:column; gap:6px;
+    }
+    label{ color:var(--muted); font-size:.9rem }
+    input[type="number"], input[type="date"]{
+      background:#0f1117; border:1px solid var(--border); color:var(--text);
+      border-radius:12px; padding:12px 12px; font-size:1rem; outline:none;
+    }
+    input:focus{ border-color:var(--focus); box-shadow:0 0 0 3px rgba(124,156,255,.15) }
+
+    .results{
+      margin-top:18px; border-top:1px dashed var(--border); padding-top:16px; display:grid; gap:12px;
+    }
+    .stat{
+      display:flex; align-items:center; justify-content:space-between; background:#0f1117; border:1px solid var(--border);
+      padding:12px 14px; border-radius:12px;
+    }
+    .pill{ font-weight:700; padding:6px 10px; border-radius:999px }
+    .pill.green{ color:#062; background:rgba(31,191,121,.15); border:1px solid rgba(31,191,121,.35) }
+    .pill.red{ color:#4d0707; background:rgba(255,90,90,.15); border:1px solid rgba(255,90,90,.35) }
+    .pill.neutral{ color:#778; background:rgba(124,156,255,.12); border:1px solid rgba(124,156,255,.35) }
+
+    .commentary{ background:#0f1117; border:1px solid var(--border); padding:12px 14px; border-radius:12px; color:#dfe6ff }
+
+    .footer{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; margin-top:18px }
+    .btn{
+      border:1px solid var(--border); background:#0f1117; color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:600
+    }
+    .btn:hover{ border-color:var(--focus) }
+
+    .unit{ color:var(--muted); font-size:.9rem }
+    .hint{ color:var(--muted); font-size:.85rem }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="card" role="region" aria-labelledby="title">
+      <h1 id="title">Wound Size Calculator</h1>
+      <p class="subtitle">Toggle between <strong>Area</strong> and <strong>Volume</strong>. Enter original and most recent measurements to see the percentage change.</p>
+
+      <div class="mode-toggle" role="tablist" aria-label="Mode toggle">
+        <button id="btnArea" class="active" role="tab" aria-selected="true" aria-controls="panelArea">Area</button>
+        <button id="btnVolume" role="tab" aria-selected="false" aria-controls="panelVolume">Volume</button>
+      </div>
+
+      <div class="grid" style="margin-top:18px">
+        <section class="section" aria-labelledby="origTitle">
+          <h2 id="origTitle">Original measurements</h2>
+          <div class="input"><label for="date1">Date</label><input id="date1" type="date"></div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="input"><label for="l1">Length <span class="unit">(cm)</span></label><input id="l1" type="number" min="0" step="0.01" inputmode="decimal"></div>
+            <div class="input"><label for="w1">Width <span class="unit">(cm)</span></label><input id="w1" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          </div>
+          <div class="input" id="depth1Wrap" style="margin-top:10px; display:none"><label for="d1">Depth <span class="unit">(cm)</span></label><input id="d1" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          <p class="hint" id="origComputed" aria-live="polite"></p>
+        </section>
+
+        <section class="section" aria-labelledby="recentTitle">
+          <h2 id="recentTitle">Most recent measurements</h2>
+          <div class="input"><label for="date2">Date</label><input id="date2" type="date"></div>
+
+          <div class="row" style="margin-top:10px">
+            <div class="input"><label for="l2">Length <span class="unit">(cm)</span></label><input id="l2" type="number" min="0" step="0.01" inputmode="decimal"></div>
+            <div class="input"><label for="w2">Width <span class="unit">(cm)</span></label><input id="w2" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          </div>
+          <div class="input" id="depth2Wrap" style="margin-top:10px; display:none"><label for="d2">Depth <span class="unit">(cm)</span></label><input id="d2" type="number" min="0" step="0.01" inputmode="decimal"></div>
+          <p class="hint" id="recentComputed" aria-live="polite"></p>
+        </section>
+      </div>
+
+      <div class="results" aria-live="polite">
+        <div class="stat"><span id="modeLabel">Area change</span> <span id="pctChange" class="pill neutral">—</span></div>
+        <div class="stat"><span>Time between measurements</span> <span id="weeks" class="pill neutral">—</span></div>
+        <div class="commentary" id="comment">Enter values to see your result.</div>
+      </div>
+
+      <div class="footer">
+        <button class="btn" id="resetBtn" type="button">Reset</button>
+        <span class="hint">Tip: Negative % (reduction) shows green. Positive % (increase) shows red.</span>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const el = id => document.getElementById(id);
+
+    const btnArea = el('btnArea');
+    const btnVolume = el('btnVolume');
+    const depth1Wrap = el('depth1Wrap');
+    const depth2Wrap = el('depth2Wrap');
+
+    const fields = ['l1','w1','d1','l2','w2','d2','date1','date2'].
+      reduce((acc,k)=> (acc[k]=el(k), acc),{});
+
+    const out = {
+      modeLabel: el('modeLabel'),
+      pctChange: el('pctChange'),
+      weeks: el('weeks'),
+      comment: el('comment'),
+      origComputed: el('origComputed'),
+      recentComputed: el('recentComputed')
+    };
+
+    let mode = 'area'; // or 'volume'
+
+    function setMode(next){
+      mode = next;
+      const isVol = mode==='volume';
+      depth1Wrap.style.display = isVol? 'block' : 'none';
+      depth2Wrap.style.display = isVol? 'block' : 'none';
+      btnArea.classList.toggle('active', !isVol);
+      btnArea.setAttribute('aria-selected', String(!isVol));
+      btnVolume.classList.toggle('active', isVol);
+      btnVolume.setAttribute('aria-selected', String(isVol));
+      out.modeLabel.textContent = isVol ? 'Volume change' : 'Area change';
+      compute();
+    }
+
+    btnArea.addEventListener('click', ()=> setMode('area'));
+    btnVolume.addEventListener('click', ()=> setMode('volume'));
+
+    Object.values(fields).forEach(i=> i.addEventListener('input', compute));
+
+    el('resetBtn').addEventListener('click', ()=>{
+      Object.values(fields).forEach(inp=> inp.value='');
+      setMode('area');
+      out.pctChange.className='pill neutral';
+      out.pctChange.textContent='—';
+      out.weeks.textContent='—';
+      out.weeks.className='pill neutral';
+      out.comment.textContent='Enter values to see your result.';
+      out.origComputed.textContent='';
+      out.recentComputed.textContent='';
+    });
+
+    function num(v){
+      const n = parseFloat(v);
+      return isFinite(n) ? n : null;
+    }
+
+    function calcValue(len, wid, dep){
+      if(mode==='area'){
+        if(len==null || wid==null) return null;
+        return len * wid; // cm²
+      } else {
+        if(len==null || wid==null || dep==null) return null;
+        return len * wid * dep; // cm³
+      }
+    }
+
+    function compute(){
+      const L1=num(fields.l1.value), W1=num(fields.w1.value), D1=num(fields.d1.value);
+      const L2=num(fields.l2.value), W2=num(fields.w2.value), D2=num(fields.d2.value);
+      const v1 = calcValue(L1,W1,D1);
+      const v2 = calcValue(L2,W2,D2);
+
+      // Display computed raw values
+      const unit = mode==='area' ? 'cm²' : 'cm³';
+      out.origComputed.textContent = v1!=null? `Original ${mode}: ${v1.toFixed(2)} ${unit}` : '';
+      out.recentComputed.textContent = v2!=null? `Recent ${mode}: ${v2.toFixed(2)} ${unit}` : '';
+
+      // Weeks difference
+      const d1 = fields.date1.value ? new Date(fields.date1.value) : null;
+      const d2 = fields.date2.value ? new Date(fields.date2.value) : null;
+      let weeksText = '—', weeksNum = null;
+      if(d1 && d2){
+        const ms = Math.abs(d2 - d1);
+        weeksNum = ms / (1000*60*60*24*7);
+        const rounded = Math.round(weeksNum*10)/10;
+        weeksText = `${rounded} week${rounded===1?'' :'s'}`;
+      }
+      out.weeks.textContent = weeksText;
+
+      // Percentage change ((recent - original)/original)*100
+      if(v1!=null && v2!=null){
+        if(v1 === 0){
+          out.pctChange.textContent = 'n/a';
+          out.pctChange.className = 'pill neutral';
+          out.comment.textContent = 'Original value is 0 — percentage change is not defined.';
+          return;
+        }
+        const pct = ((v2 - v1) / v1) * 100;
+        const rounded = Math.round(pct*10)/10;
+        out.pctChange.textContent = `${rounded}%`;
+        if(rounded < 0){
+          out.pctChange.className = 'pill green';
+        } else if(rounded > 0){
+          out.pctChange.className = 'pill red';
+        } else {
+          out.pctChange.className = 'pill neutral';
+        }
+
+        // Commentary
+        const direction = rounded < 0 ? 'reduced' : (rounded > 0 ? 'increased' : 'not changed');
+        const absPct = Math.abs(rounded).toFixed(1);
+        const span = (weeksNum!=null) ? `${(Math.round(weeksNum*10)/10)} week${Math.round(weeksNum*10)/10===1?'':'s'}` : 'the recorded period';
+        const noun = mode==='area' ? 'area' : 'volume';
+        if(direction==='not changed'){
+          out.comment.textContent = `Over ${span}, the wound's ${noun} has not changed.`;
+        } else {
+          out.comment.textContent = `Over ${span} your wound has ${direction} in ${noun} by ${absPct}%.`;
+        }
+      } else {
+        out.pctChange.textContent = '—';
+        out.pctChange.className = 'pill neutral';
+        out.comment.textContent = 'Enter values to see your result.';
+      }
+    }
+
+    // Initialize
+    setMode('area');
+  </script>
+</body>
+</html>
